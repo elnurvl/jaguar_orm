@@ -23,7 +23,7 @@ class BelongsToSpec implements ForeignSpec {
 
   String get beanName => bean.name;
 
-  String get modelName => model.name;
+  String get modelName => getPublicType(model.name);
 
   String get beanInstanceName => uncap(modelName) + 'Bean';
 }

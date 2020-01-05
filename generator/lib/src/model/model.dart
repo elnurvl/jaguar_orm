@@ -64,6 +64,7 @@ class ParsedBean extends UnAssociatedBean {
   ParsedBean(
     String name, {
     @required String modelType,
+    @required bool hasFactory,
     @required Map<String, ParsedField> fields,
     @required List<ParsedField> primary,
     @required List<Preload> preloads,
@@ -71,6 +72,7 @@ class ParsedBean extends UnAssociatedBean {
     @required this.associationsWithRelations,
     @required this.associationsWithoutRelations,
   }) : super(name, modelType,
+            hasFactory: hasFactory,
             fields: fields,
             primary: primary,
             relations: relations,
@@ -84,6 +86,7 @@ class ParsedBean extends UnAssociatedBean {
   }) {
     return ParsedBean(bean.name,
         modelType: bean.modelType,
+        hasFactory: bean.hasFactory,
         fields: bean.fields,
         primary: bean.primary,
         preloads: bean.preloads,
@@ -109,17 +112,22 @@ class UnAssociatedBean {
 
   final String modelType;
 
+  final bool hasFactory;
+
   final Map<String, ParsedField> fields;
 
   final List<ParsedField> primary;
 
   final List<Preload> preloads;
 
+  String get superType => getPublicType(modelType);
+
   /// Map of field name to relation.
   final Map<String, RelationSpec> relations;
 
   UnAssociatedBean(this.name, this.modelType,
-      {@required this.fields,
+      {@required this.hasFactory,
+      @required this.fields,
       @required this.primary,
       @required this.relations,
       @required this.preloads});

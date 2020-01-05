@@ -43,7 +43,17 @@ BelongsToSpec readBelongsTo(ConstantReader reader) {
 List<ColumnDef> _filterColumnDef(FieldElement f) {
   final ret = <ColumnDef>[];
 
-  for (ElementAnnotation annot in f.metadata) {
+  List<ElementAnnotation> annotations = new List.from(f.metadata);
+  if (f.hasOverride) {
+    (f.enclosingElement as ClassElement)
+        .supertype
+        ?.element
+        ?.getGetter(f.name)
+        ?.metadata
+        ?.forEach((f) => annotations.add(f));
+  }
+
+  for (ElementAnnotation annot in annotations) {
     final obj = annot.computeConstantValue();
     final reader = ConstantReader(obj);
 

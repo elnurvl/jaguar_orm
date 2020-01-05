@@ -82,13 +82,23 @@ class Writer {
 
   void _writeFromMap() {
     _w.writeln('${_b.modelType} fromMap(Map map) {');
-    _w.write('${_b.modelType} model = ${_b.modelType}(');
-    _b.fields.values.forEach((ParsedField field) {
-      if (field.isFinal) {
-        _w.write(
-            '${field.field}: adapter.parseValue(map[\'${_camToSnak(field.colName)}\']),');
-      }
-    });
+    _w.write('${_b.superType} model = ${_b.superType}(');
+    if (_b.hasFactory) {
+      _w.write('(b) => b');
+      _b.fields.values.forEach((ParsedField field) {
+        if (field.isFinal) {
+          _w.write(
+              '..${field.field} = adapter.parseValue(map[\'${_camToSnak(field.colName)}\'])');
+        }
+      });
+    } else {
+      _b.fields.values.forEach((ParsedField field) {
+        if (field.isFinal) {
+          _w.write(
+              '${field.field}: adapter.parseValue(map[\'${_camToSnak(field.colName)}\']),');
+        }
+      });
+    }
     _w.writeln(');');
 
     _b.fields.values.forEach((ParsedField field) {
@@ -141,7 +151,7 @@ class Writer {
 
   void _writeToSetColumns() {
     _w.writeln(
-        'List<SetColumn> toSetColumns(${_b.modelType} model, {bool update = false, Set<String> only, bool onlyNonNull = false}) {');
+        'List<SetColumn> toSetColumns(${_b.superType} model, {bool update = false, Set<String> only, bool onlyNonNull = false}) {');
     _w.writeln('List<SetColumn> ret = [];');
     _w.writeln();
 
@@ -206,7 +216,7 @@ class Writer {
         _write('Future<void> ');
       }
       _w.writeln(
-          'insert(${_b.modelType} model, {bool cascade = false, bool onlyNonNull = false, Set<String> only, Connection withConn}) async {');
+          'insert(${_b.superType} model, {bool cascade = false, bool onlyNonNull = false, Set<String> only, Connection withConn}) async {');
       _w.write('final Insert insert = inserter');
       _w.writeln(
           '.setMany(toSetColumns(model, only: only, onlyNonNull: onlyNonNull));');
@@ -216,7 +226,7 @@ class Writer {
     }
 
     _w.writeln(
-        'Future<dynamic> insert(${_b.modelType} model, {bool cascade = false, bool onlyNonNull = false, Set<String> only, Connection withConn}) async {');
+        'Future<dynamic> insert(${_b.superType} model, {bool cascade = false, bool onlyNonNull = false, Set<String> only, Connection withConn}) async {');
     _w.write('final Insert insert = inserter');
     _w.write(
         '.setMany(toSetColumns(model, only: only, onlyNonNull: onlyNonNull))');
@@ -227,7 +237,7 @@ class Writer {
     _w.writeln('var retId = await adapter.insert(insert, withConn: withConn);');
 
     _w.writeln('if(cascade) {');
-    _w.writeln('${_b.modelType} newModel;');
+    _w.writeln('${_b.superType} newModel;');
     for (Preload p in _b.preloads) {
       _w.writeln('if(model.${p.property} != null) {');
       _w.writeln('newModel ??= await find(');
@@ -239,7 +249,7 @@ class Writer {
 
       if (!p.hasMany) {
         _write(_uncap(p.beanInstanceName));
-        _write('.associate${_b.modelType}');
+        _write('.associate${_b.superType}');
         if (p.linkBy != null) _write('_for${p.linkBy}');
         _write('(model.' + p.property + ', newModel);');
         _write('await ' +
@@ -251,7 +261,7 @@ class Writer {
         if (p is PreloadOneToX) {
           _write('model.' + p.property + '.forEach((x) => ');
           _write(_uncap(p.beanInstanceName));
-          _write('.associate${_b.modelType}');
+          _write('.associate${_b.superType}');
           if (p.linkBy != null) _write('_for${p.linkBy}');
           _write('(x, newModel));');
           _writeln('for(final child in model.${p.property}) {');
@@ -263,7 +273,7 @@ class Writer {
           _writeln('for(final child in model.${p.property}) {');
           _writeln(
               'await ${p.targetBeanInstanceName}.insert(child, cascade: cascade, withConn: withConn);');
-          if (_b.modelType.compareTo(p.targetInfo.modelType) > 0) {
+          if (_b.superType.compareTo(p.targetInfo.superType) > 0) {
             _write('await ${p.beanInstanceName}.attach');
             if (p.linkBy != null) _write('_for${p.linkBy}');
             _writeln('(newModel, child);');
@@ -288,7 +298,7 @@ class Writer {
       cascade = 'bool cascade = false,';
     }
     _w.writeln(
-        'Future<void> insertMany(List<${_b.modelType}> models, {${cascade}bool onlyNonNull = false, Set<String> only, Connection withConn}) async {');
+        'Future<void> insertMany(List<${_b.superType}> models, {${cascade}bool onlyNonNull = false, Set<String> only, Connection withConn}) async {');
     if (cascade.isNotEmpty) {
       _w.write('if(cascade)  {');
       _w.write('final List<Future> futures = [];');
@@ -324,19 +334,19 @@ class Writer {
         _write('Future<void> ');
       }
       _w.writeln(
-          ' upsert(${_b.modelType} model, {bool cascade = false, Set<String> only, bool onlyNonNull = false, Connection withConn}) async {');
+          ' upsert(${_b.superType} model, {bool cascade = false, Set<String> only, bool onlyNonNull = false, Connection withConn}) async {');
       _w.write('final Upsert upsert = upserter');
       _w.writeln(
           '.setMany(toSetColumns(model, only: only, onlyNonNull: onlyNonNull));');
       _w.writeln('var id = await adapter.upsert(upsert, withConn: withConn);');
-      _w.writeln('model.id = id;');
+      _w.writeln('model.rebuild((u) => u..id = id);');
       _w.writeln('return id;');
       _w.writeln('}');
       return;
     }
 
     _w.writeln(
-        'Future<dynamic> upsert(${_b.modelType} model, {bool cascade = false, Set<String> only, bool onlyNonNull = false, Connection withConn}) async {');
+        'Future<dynamic> upsert(${_b.superType} model, {bool cascade = false, Set<String> only, bool onlyNonNull = false, Connection withConn}) async {');
     _w.write('final Upsert upsert = upserter');
     _w.write(
         '.setMany(toSetColumns(model, only: only, onlyNonNull: onlyNonNull))');
@@ -347,7 +357,7 @@ class Writer {
     _w.writeln('var retId = await adapter.upsert(upsert, withConn: withConn);');
 
     _w.writeln('if(cascade) {');
-    _w.writeln('${_b.modelType} newModel;');
+    _w.writeln('${_b.superType} newModel;');
     for (Preload p in _b.preloads) {
       _w.writeln('if(model.${p.property} != null) {');
       _w.writeln('newModel ??= await find(');
@@ -359,7 +369,7 @@ class Writer {
 
       if (!p.hasMany) {
         _write(_uncap(p.beanInstanceName));
-        _write('.associate${_b.modelType}');
+        _write('.associate${_b.superType}');
         if (p.linkBy != null) _write('_for${p.linkBy}');
         _write('(model.' + p.property + ', newModel);');
         _write('await ' +
@@ -371,7 +381,7 @@ class Writer {
         if (p is PreloadOneToX) {
           _write('model.' + p.property + '.forEach((x) => ');
           _write(_uncap(p.beanInstanceName));
-          _write('.associate${_b.modelType}');
+          _write('.associate${_b.superType}');
           if (p.linkBy != null) _write('_for${p.linkBy}');
           _writeln('(x, newModel));');
           _writeln('for(final child in model.${p.property}) {');
@@ -383,7 +393,7 @@ class Writer {
           _writeln('for(final child in model.${p.property}) {');
           _writeln(
               'await ${p.targetBeanInstanceName}.upsert(child, cascade: cascade, withConn: withConn);');
-          if (_b.modelType.compareTo(p.targetInfo.modelType) > 0) {
+          if (_b.superType.compareTo(p.targetInfo.superType) > 0) {
             _write('await ${p.beanInstanceName}.attach');
             if (p.linkBy != null) _write('_for${p.linkBy}');
             _writeln('(newModel, child, upsert: true, withConn: withConn);');
@@ -398,7 +408,7 @@ class Writer {
       _w.writeln('}');
     }
     _w.writeln('}');
-    _w.writeln('model.id = retId;');
+    _w.writeln('model.rebuild((u) => u..id = retId);');
     _w.writeln('return retId;');
     _w.writeln('}');
   }
@@ -409,7 +419,7 @@ class Writer {
       cascade = 'bool cascade = false, ';
     }
     _w.writeln(
-        'Future<void> upsertMany(List<${_b.modelType}> models, {${cascade} bool onlyNonNull = false, Set<String> only, Connection withConn}) async {');
+        'Future<void> upsertMany(List<${_b.superType}> models, {${cascade} bool onlyNonNull = false, Set<String> only, Connection withConn}) async {');
     if (cascade.isNotEmpty) {
       _w.write('if(cascade)  {');
       _w.write('final List<Future> futures = [];');
@@ -446,7 +456,7 @@ class Writer {
 
     if (_b.preloads.length == 0) {
       _w.writeln(
-          'Future<int> update(${_b.modelType} model, {bool cascade = false, bool associate = false, Set<String> only, bool onlyNonNull = false, Connection withConn}) async {');
+          'Future<int> update(${_b.superType} model, {bool cascade = false, bool associate = false, Set<String> only, bool onlyNonNull = false, Connection withConn}) async {');
       _w.write('final Update update = updater.');
       final String wheres = _b.primary
           .map((ParsedField f) => 'where(this.${f.field}.eq(model.${f.field}))')
@@ -460,7 +470,7 @@ class Writer {
     }
 
     _w.writeln(
-        'Future<int> update(${_b.modelType} model, {bool cascade = false, bool associate = false, Set<String> only, bool onlyNonNull = false, Connection withConn}) async {');
+        'Future<int> update(${_b.superType} model, {bool cascade = false, bool associate = false, Set<String> only, bool onlyNonNull = false, Connection withConn}) async {');
     _w.write('final Update update = updater.');
     final String wheres = _b.primary
         .map((ParsedField f) => 'where(this.${f.field}.eq(model.${f.field}))')
@@ -471,7 +481,7 @@ class Writer {
     _w.writeln('final ret = adapter.update(update, withConn: withConn);');
 
     _w.writeln('if(cascade) {');
-    _w.writeln('${_b.modelType} newModel;');
+    _w.writeln('${_b.superType} newModel;');
     for (Preload p in _b.preloads) {
       _w.writeln('if(model.${p.property} != null) {');
       if (p is PreloadOneToX) {
@@ -484,13 +494,13 @@ class Writer {
 
         if (!p.hasMany) {
           _write(_uncap(p.beanInstanceName));
-          _write('.associate${_b.modelType}');
+          _write('.associate${_b.superType}');
           if (p.linkBy != null) _write('_for${p.linkBy}');
           _writeln('(model.' + p.property + ', newModel);');
         } else {
           _write('model.' + p.property + '.forEach((x) => ');
           _write(_uncap(p.beanInstanceName));
-          _write('.associate${_b.modelType}');
+          _write('.associate${_b.superType}');
           if (p.linkBy != null) _write('_for${p.linkBy}');
           _writeln('(x, newModel));');
         }
@@ -529,7 +539,7 @@ class Writer {
       cascade = 'bool cascade = false, ';
     }
     _w.writeln(
-        'Future<void> updateMany(List<${_b.modelType}> models, {${cascade} bool onlyNonNull = false, Set<String> only, Connection withConn}) async {');
+        'Future<void> updateMany(List<${_b.superType}> models, {${cascade} bool onlyNonNull = false, Set<String> only, Connection withConn}) async {');
     if (cascade.isNotEmpty) {
       _w.write('if(cascade)  {');
       _w.write('final List<Future> futures = [];');
@@ -574,7 +584,7 @@ class Writer {
   void _writeFind() {
     if (_b.primary.length == 0) return;
 
-    _write('Future<${_b.modelType}> find(');
+    _write('Future<${_b.superType}> find(');
     final String args =
         _b.primary.map((ParsedField f) => '${f.type} ${f.field}').join(',');
     _write(args);
@@ -590,10 +600,10 @@ class Writer {
 
     if (_b.preloads.length > 0) {
       _writeln(
-          'final ${_b.modelType} model = await findOne(find, withConn: withConn);');
+          'final ${_b.superType} model = await findOne(find, withConn: withConn);');
       _writeln('if (preload && model != null) {');
       _writeln(
-          'await this.preload(model, cascade: cascade, withConn: withConn);');
+          'return await this.preload(model, cascade: cascade, withConn: withConn);');
       _writeln('}');
       _writeln('return model;');
     } else {
@@ -632,7 +642,7 @@ class Writer {
     _writeln('}) async {');
 
     _writeln('if (cascade) {');
-    _w.writeln('final ${_b.modelType} newModel = ');
+    _w.writeln('final ${_b.superType} newModel = ');
     _w.writeln('await find(');
     _write(_b.primary.map((f) {
       return '${f.field}';
@@ -641,14 +651,14 @@ class Writer {
     _w.writeln('if(newModel != null) {');
     for (Preload p in _b.preloads) {
       if (p is PreloadOneToX) {
-        _write('await ' + p.beanInstanceName + '.removeBy' + _b.modelType);
+        _write('await ' + p.beanInstanceName + '.removeBy' + _b.superType);
         if (p.linkBy != null) _write('_for${p.linkBy}');
         _write('(');
         _write(p.fields.map((f) => 'newModel.' + f.field).join(', '));
         _writeln(', withConn: withConn);');
       } else if (p is PreloadManyToMany) {
         _write(
-            'await ${p.beanInstanceName}.detach${_b.modelType}(newModel, withConn: withConn, removeOrphans: removeOrphans);');
+            'await ${p.beanInstanceName}.detach${_b.superType}(newModel, withConn: withConn, removeOrphans: removeOrphans);');
       }
     }
     _w.writeln('}');
@@ -666,9 +676,9 @@ class Writer {
 
   void _writeFindOneByBeanedAssociation(Association m) {
     if (!m.toMany) {
-      _w.write('Future<${_b.modelType}>');
+      _w.write('Future<${_b.superType}>');
     } else {
-      _w.write('Future<List<${_b.modelType}>>');
+      _w.write('Future<List<${_b.superType}>>');
     }
     _w.write(' findBy${_cap(m.modelName)}');
     if (m is AssociationByRelation && m.name != null) {
@@ -691,7 +701,7 @@ class Writer {
 
     if (_b.preloads.length > 0) {
       if (!m.toMany) {
-        _write('final ${_b.modelType} model = await ');
+        _write('final ${_b.superType} model = await ');
         _writeln('findOne(find, withConn: withConn);');
 
         _writeln('if (preload && model != null) {');
@@ -701,7 +711,7 @@ class Writer {
 
         _writeln('return model;');
       } else {
-        _write('final List<${_b.modelType}> models = ');
+        _write('final List<${_b.superType}> models = ');
         _writeln('await findMany(find, withConn: withConn);');
 
         _writeln('if (preload) {');
@@ -727,7 +737,7 @@ class Writer {
     if (_b.primary.length == 0) return;
 
     _w.writeln(
-        'Future<int> removeMany(List<${_b.modelType}> models, {Connection withConn}) async {');
+        'Future<int> removeMany(List<${_b.superType}> models, {Connection withConn}) async {');
     // Return if models is empty. If this is not done, all records will be removed!
     _w.writeln(
         "// Return if models is empty. If this is not done, all records will be removed! ");
@@ -771,7 +781,7 @@ class Writer {
   }
 
   void _writeFindListByBeanedAssociationList(Association m) {
-    _write('Future<List<${_b.modelType}>> findBy${_cap(m.modelName)}List');
+    _write('Future<List<${_b.superType}>> findBy${_cap(m.modelName)}List');
     if (m is AssociationByRelation && m.name != null) {
       _write('_for${m.name}');
     }
@@ -797,7 +807,7 @@ class Writer {
     _writeln('}');
 
     if (_b.preloads.length > 0) {
-      _writeln('final List<${_b.modelType}> retModels = await findMany(find);');
+      _writeln('final List<${_b.superType}> retModels = await findMany(find);');
       _writeln('if (preload) {');
       _writeln(
           'await this.preloadAll(retModels, cascade: cascade, withConn: withConn);');
@@ -814,16 +824,16 @@ class Writer {
     if (_b.preloads.length == 0) return;
 
     _writeln(
-        'Future<${_b.modelType}> preload(${_b.modelType} model, {bool cascade = false, Connection withConn}) async {');
+        'Future<${_b.superType}> preload(${_b.superType} model, {bool cascade = false, Connection withConn}) async {');
     for (Preload p in _b.preloads) {
-      _write('model.');
+      _write('var ');
       _write(p.property);
       _write(' = await ');
 
       if (p is PreloadOneToX) {
         _write(_uncap(p.beanInstanceName));
         _write('.findBy');
-        _write(_b.modelType);
+        _write(_b.superType);
         if (p.linkBy != null) _write('_for${p.linkBy}');
         _write('(');
         final String args = p.foreignFields
@@ -834,9 +844,18 @@ class Writer {
         _write(args);
         _write(', preload: cascade, cascade: cascade, withConn: withConn');
         _writeln(');');
+        if (p.hasMany) {
+          _write(
+              'model = model.rebuild((m) => m..${p.property} = BuiltList<${p.modelName}>.from(${p.property}).toBuilder());');
+        } else {
+          _write(
+              'model = model.rebuild((m) => m..${p.property} = ${p.property}.toBuilder());');
+        }
       } else if (p is PreloadManyToMany) {
         _write(
-            '${p.beanInstanceName}.fetchBy${_b.modelType}(model, withConn: withConn);');
+            '${p.beanInstanceName}.fetchBy${_b.superType}(model, withConn: withConn);');
+        _write(
+            'model = model.rebuild((m) => m..${p.property} = BuiltList<${p.targetModelName}>.from(${p.property}).toBuilder());');
       }
     }
     _writeln('return model;');
@@ -847,19 +866,19 @@ class Writer {
     if (_b.preloads.length == 0) return;
 
     _writeln(
-        'Future<List<${_b.modelType}>> preloadAll(List<${_b.modelType}> models, {bool cascade = false, Connection withConn}) async {');
+        'Future<List<${_b.superType}>> preloadAll(List<${_b.superType}> models, {bool cascade = false, Connection withConn}) async {');
     for (Preload p in _b.preloads) {
       if (p is PreloadOneToX) {
         if (p.hasMany) {
           _writeln(
-              'models.forEach((${_b.modelType} model) => model.${p.property} ??= []);');
+              'models.forEach((${_b.superType} model) => model = model.rebuild((m) => m..${p.property} ??= BuiltList<${p.modelName}>.from([]).toBuilder()));');
         }
 
         _write('await OneToXHelper.');
         // Arg1: models
-        _write('preloadAll<${_b.modelType}, ${p.modelName}>(models, ');
+        _write('preloadAll<${_b.superType}, ${p.modelName}>(models, ');
         // Arg2: ParentGetter
-        _write('(${_b.modelType} model) => [');
+        _write('(${_b.superType} model) => [');
         {
           final String args = p.foreignFields
               .map((ParsedField f) => f.foreign.references)
@@ -872,7 +891,7 @@ class Writer {
         //Arg3: function
         _write(_uncap(p.beanInstanceName));
         _write('.findBy');
-        _write(_b.modelType + 'List');
+        _write(_b.superType + 'List');
         if (p.linkBy != null) _write('_for${p.linkBy}');
         _write(', ');
         //Arg4: ChildGetter
@@ -887,20 +906,22 @@ class Writer {
         //Arg5: Setter
         if (!p.hasMany) {
           _write(
-              '(${_b.modelType} model, ${p.modelName} child) => model.${p.property} = child, ');
+              '(${_b.superType} model, ${p.modelName} child) => model = model.rebuild((m) => m..${p.property} = child.toBuilder()), ');
         } else {
           _write(
-              '(${_b.modelType} model, ${p.modelName} child) => model.${p.property} = List.from(model.${p.property})..add(child), ');
+              '(${_b.superType} model, ${p.modelName} child) => model = model.rebuild((m) => m..${p.property} = BuiltList<${p.modelName}>.from(List.from(model.${p.property})..add(child)).toBuilder()), ');
         }
         _writeln('cascade: cascade, withConn: withConn);');
       } else if (p is PreloadManyToMany) {
-        _writeln('for(${_b.modelType} model in models) {');
+        _writeln('for(${_b.superType} model in models) {');
         _writeln(
-            'var temp = await ${p.beanInstanceName}.fetchBy${_b.modelType}(model, withConn: withConn);');
-        _writeln('if(model.${p.property} == null) model.${p.property} = temp;');
+            'var temp = await ${p.beanInstanceName}.fetchBy${_b.superType}(model, withConn: withConn);');
+        _writeln(
+            'if(model.${p.property} == null) model = model.rebuild((m) => m..${p.property} = BuiltList<${p.targetModelName}>.from(temp).toBuilder());');
         _writeln('else {');
-        _writeln('model.${p.property}.clear();');
-        _writeln('model.${p.property}.addAll(temp);');
+        _writeln('model = model.rebuild((m) => m..${p.property}.clear());');
+        _writeln(
+            'model = model.rebuild((m) => m..${p.property}.addAll(BuiltList<${p.targetModelName}>.from(temp)));');
         _writeln('}');
         _writeln('}');
       }
@@ -970,13 +991,13 @@ class Writer {
       _write('_for${m.name}');
     }
     _w.write('(');
-    _write('${_b.modelType} child, ');
+    _write('${_b.superType} child, ');
     _write('${m.modelName} parent');
     _writeln(') {');
 
     for (int i = 0; i < m.fields.length; i++) {
       _writeln(
-          'child.${m.fields[i].field} = parent.${m.foreignFields[i].field};');
+          'child = child.rebuild((c) => c..${m.fields[i].field} = parent.${m.foreignFields[i].field});');
     }
 
     _writeln('}');
@@ -987,7 +1008,7 @@ class Writer {
     if (m is AssociationByRelation && m.name != null) {
       _write('_for${m.name}');
     }
-    _writeln('(${_b.modelType} model, {Connection withConn}) async {');
+    _writeln('(${_b.superType} model, {Connection withConn}) async {');
     _write('return ${m.beanInstanceName}.findOneWhere(');
     {
       final keys = <String>[];
@@ -1006,7 +1027,7 @@ class Writer {
     if (m is AssociationByRelation && m.name != null) {
       _write('_for${m.name}');
     }
-    _writeln('(${_b.modelType} model, {Connection withConn}) async {');
+    _writeln('(${_b.superType} model, {Connection withConn}) async {');
     _write('return ${m.beanInstanceName}.findWhere(');
     {
       final keys = <String>[];
@@ -1154,23 +1175,25 @@ class Writer {
       _write('${m1.modelName} one, ${_cap(m.modelName)} two');
     }
     _writeln(', {bool upsert = false, Connection withConn}) async {');
-    _writeln('final ret = ${_b.modelType}();');
+    _writeln('final ret = ${_b.superType}();');
 
     if (m.modelName.compareTo(m1.modelName) > 0) {
       for (int i = 0; i < m.fields.length; i++) {
-        _writeln('ret.${m.fields[i].field} = one.${m.foreignFields[i].field};');
+        _writeln(
+            'ret.rebuild((r) => r..${m.fields[i].field} = one.${m.foreignFields[i].field});');
       }
       for (int i = 0; i < m1.fields.length; i++) {
         _writeln(
-            'ret.${m1.fields[i].field} = two.${m1.foreignFields[i].field};');
+            'ret.rebuild((r) => r..${m1.fields[i].field} = two.${m1.foreignFields[i].field});');
       }
     } else {
       for (int i = 0; i < m1.fields.length; i++) {
         _writeln(
-            'ret.${m1.fields[i].field} = one.${m1.foreignFields[i].field};');
+            'ret.rebuild((r) => r..${m1.fields[i].field} = one.${m1.foreignFields[i].field});');
       }
       for (int i = 0; i < m.fields.length; i++) {
-        _writeln('ret.${m.fields[i].field} = two.${m.foreignFields[i].field};');
+        _writeln(
+            'ret.rebuild((r) => r..${m.fields[i].field} = two.${m.foreignFields[i].field});');
       }
     }
     _writeln('''

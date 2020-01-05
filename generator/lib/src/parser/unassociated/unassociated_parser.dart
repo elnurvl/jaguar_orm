@@ -56,9 +56,15 @@ class UnassociatedBeanParser {
 
     _computePreloads();
 
+    var hasFactory = (model.element as ClassElement)
+        .constructors
+        .where((c) => c.isFactory)
+        .isNotEmpty;
+
     final ret = UnAssociatedBean(
       clazz.name,
       model.name,
+      hasFactory: hasFactory,
       fields: fields,
       primary: primaries,
       relations: relations,
@@ -132,7 +138,9 @@ class UnassociatedBeanParser {
   }
 
   bool _relation(DartType curBean, FieldElement f) {
-    DartObject rel = isRelation.firstAnnotationOf(f);
+    DartObject rel = isRelation.firstAnnotationOf(f) ??
+        isRelation.firstAnnotationOf(
+            (f.enclosingElement as ClassElement).supertype.getGetter(f.name));
     if (rel == null) return false;
 
     String linkBy = getString(rel, 'linkBy');

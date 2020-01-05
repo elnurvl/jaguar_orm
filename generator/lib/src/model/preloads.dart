@@ -58,7 +58,7 @@ abstract class Preload {
 
   String get beanInstanceName => uncap(modelName) + 'Bean';
 
-  String get modelName => getModelForBean(bean).name;
+  String get modelName => getPublicType(getModelForBean(bean).name);
 
   String get linkBy => spec.linkBy;
 
@@ -98,7 +98,7 @@ class PreloadManyToMany extends Preload {
 
   String get targetBeanInstanceName => uncap(targetModelName) + 'Bean';
 
-  String get targetModelName => getModelForBean(targetBean).name;
+  String get targetModelName => getPublicType(getModelForBean(targetBean).name);
 
   String get property => spec.property;
 

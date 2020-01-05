@@ -6,3 +6,4 @@ builders:
     build_extensions: {".dart": [".jorm.dart"]}
     auto_apply: root_package
     build_to: source
+    required_inputs: ['.g.dart']

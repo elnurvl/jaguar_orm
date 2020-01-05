@@ -135,3 +135,15 @@ DartType getType(/* ConstantReader | DartObject */ reader, String field) {
   if (value.isNull) return null;
   return value.typeValue;
 }
+
+String getPublicType(String str) => str.replaceFirst(new RegExp(r'^_\$+'), '');
+
+List<ElementAnnotation> getAnnotations(Element f) {
+  List<ElementAnnotation> annotations = new List.from(f.metadata);
+  ClassElement clazz = f.enclosingElement as ClassElement;
+  var getter = clazz.supertype.getGetter(f.name);
+  if (f.hasOverride && clazz.supertype != null) {
+    annotations.addAll(getAnnotations(getter));
+  }
+  return annotations;
+}
